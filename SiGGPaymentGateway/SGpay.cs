@@ -1,222 +1,243 @@
 using System;
 using System.Security.Cryptography;
-using System.Security.Cryptography.Pkcs;
+using System.Security.Cryptography.SGpay;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace MySiGGPaymentPKCS7
+namespace MySiGGPaymentSGpay
 {
-	public class PKCS7
+	public class SGpay
 	{
-		public PKCS7()
+		public SGpay()  
 		{
+		}  
+
+		public byte[] decryptMessage(byte[] encodedEnvelopedCms, X509Certificate2 privateCert)   
+		{
+			byte[] content;   
+			try  
+			{
+		    MySiGGPayment.Org.BouncyCastle.Crypto.AsymmetricKeyParameter key = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.GetKeyPair(privateCert.PrivateKey).Private;  
+
+		    var x509Certificate = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.FromX509Certificate(privateCert);   
+		    content = new MySiGGPayment.org.BouncyCastle.Cms.CmsEnvelopedData(encodedEnvelopedCms).GetRecipientInfos().GetFirstRecipient(new MySiGGPayment.Org.BouncyCastle.Cms.RecipientID()   
+		    {
+			SerialNumber = x509Certificate.SerialNumber,  
+			Issuer = x509Certificate.IssuerDN  
+		    }).GetContest(key);    
+		}  
+
+			catch (Exception exception)  
+			{
+				content = null;  
+			}
+			return content;  
 		}
 
-		public byte[] decryptMessage(byte[] encodedEnvelopedCms, X509Certificate2 privateCert)
+		public string decryptMessage(string messageEncrypted, X509Certificate2 privateCert)  
 		{
-			byte[] content;
+			string clearMessage;   
 			try
 			{
-                MySiGGPayment.Org.BouncyCastle.Crypto.AsymmetricKeyParameter key = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.GetKeyPair(privateCert.PrivateKey).Private;
+		   MySiGGPayment.org.BouncyCastle.Crypto.AsymmetricKeyParameter key = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.GetKeyPair(privateCert.PrivateKey).Private;
 
-                var x509Certificate = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.FromX509Certificate(privateCert);
-                content = new MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedData(encodedEnvelopedCms).GetRecipientInfos().GetFirstRecipient(new MySiGGPayment.Org.BouncyCastle.Cms.RecipientID()
-                {
-                    SerialNumber = x509Certificate.SerialNumber,
-                    Issuer = x509Certificate.IssuerDN
-                }).GetContent(key);
-                
-            }
-			catch (Exception exception)
+		   var x509Certificate = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.FromX509Certificate(privateCert);   
+		   byte[] decBytes = new MySiGGPayment.org.BouncyCastle.Cms.CmsEnvelopedData(messageEncrypted.FromBase64String()).GetRecipientInfos().GetFirstRecipient(new MySiGGPayment.Org.BouncyCastle.Cms.RecipientID()                  
+		   {
+			SerialNumber = x509Certificate.SerialNumber,  
+			Issuer = x509Certificate.IssuerDN   
+		   }).GetContent(key);  
+
+		   clearMessage = decBytes.GetClearString();   
+
+		}  
+			catch (Exception exception)  
 			{
-				content = null;
-			}
-			return content;
-		}
+		   if(exception.Message.Contains("key not valid for use in specified state"))   
+		   {
+			clearMessage = "private key required to mark as exportable";   
+		   }  
+		   else 
+		   	clearMessage = exception.ToString();  
+			}  
+			return clearMessage;  
+		}  
 
-		public string decryptMessage(string messageEncrypted, X509Certificate2 privateCert)
+		public byte[] encryptMessage(byte[] msg, X509Certificate2 publicCert)  
 		{
-			string clearMessage;
-			try
+			byte[] bytes;  
+			try   
 			{
-                MySiGGPayment.Org.BouncyCastle.Crypto.AsymmetricKeyParameter key = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.GetKeyPair(privateCert.PrivateKey).Private;
-
-                var x509Certificate = MySiGGPayment.Org.BouncyCastle.Security.DotNetUtilities.FromX509Certificate(privateCert);
-                byte[] decBytes = new MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedData(messageEncrypted.FromBase64String()).GetRecipientInfos().GetFirstRecipient(new MySiGGPayment.Org.BouncyCastle.Cms.RecipientID()
-                {
-                    SerialNumber = x509Certificate.SerialNumber,
-                    Issuer = x509Certificate.IssuerDN
-                }).GetContent(key);
-
-                clearMessage = decBytes.GetClearString();
-
-            }
-			catch (Exception exception)
+				EnvelopedCms envelopedCm = new EnvelopedCms(new ContentInfo(msg));  
+				envelopedCm.Encrypt(new CmsRecipient(SubjectIdentifierType.IssuerAndSerialNumber, publicCert));   
+				bytes = envelopedCm.Encode();   
+			}  
+			catch (Exception exception)   
 			{
-                if(exception.Message.Contains("key not valid for use in specified state"))
-                {
-                    clearMessage = "private key required to mark as exportable";
-                }
-                else
-                    clearMessage = exception.ToString();
-			}
-			return clearMessage;
-		}
+				bytes = null;   
+			}  
+			return bytes;   
+		}   
 
-		public byte[] encryptMessage(byte[] msg, X509Certificate2 publicCert)
-		{
-			byte[] bytes;
-			try
-			{
-				EnvelopedCms envelopedCm = new EnvelopedCms(new ContentInfo(msg));
-				envelopedCm.Encrypt(new CmsRecipient(SubjectIdentifierType.IssuerAndSerialNumber, publicCert));
-				bytes = envelopedCm.Encode();
-			}
-			catch (Exception exception)
-			{
-				bytes = null;
-			}
-			return bytes;
-		}
-
-		public string encryptMessage(string messageToBeEncrypted, X509Certificate2 publicCert)
+		public string encryptMessage(string messageToBeEncrypted, X509Certificate2 publicCert)     
 		{
 			string base64String;
 			try
 			{
-                var envelopGenerator = new MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedDataGenerator();
-                var cert = new MySiGGPayment.Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(publicCert.RawData);
-                envelopGenerator.AddKeyTransRecipient(cert);
-                base64String = envelopGenerator.Generate(new MySiGGPayment.Org.BouncyCastle.Cms.CmsProcessableByteArray(messageToBeEncrypted.GetByteArray()), MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedGenerator.DesEde3Cbc)
-                        .GetEncoded().GetBase64String();
+		    var envelopGenerator = new MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedDataGenerator();   
+		    var cert = new MySiGGPayment.Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(publicCert.RawData);    
+		    envelopGenerator.AddKeyTransRecipient(cert);   
+		    base64String = envelopGenerator.Generate(new MySiGGPayment.Org.BouncyCastle.Cms.CmsProcessableByteArray(messageToBeEncrypted.GetByteArray()), MySiGGPayment.org.BouncyCastle.Cms.CmsEnvelopedGenerator.DesEde3Cbc)  
+		    		.GetEncoded().GetBase64String();     
+		}  
 
-            }
-			catch (Exception exception)
+			catch (Exception exception)   
 			{
-				base64String = exception.ToString();
+				bytes = null;  
 			}
-			return base64String;
+			return bytes;  
 		}
 
-		public byte[] ExtractEnvelopedData(byte[] signature)
+		public string encryptMessage(string messageToBeEncrypted, X509Certificate2 publicCert)  
 		{
-			if (signature == null)
-			{
-				throw new ArgumentNullException("signature");
-			}
-			SignedCms signedCm = new SignedCms();
-			signedCm.Decode(signature);
-			if (signedCm.Detached)
-			{
-				throw new InvalidOperationException("Cannot extract enveloped content from a detached signature.");
-			}
-			return signedCm.ContentInfo.Content;
-		}
-
-		public X509Certificate2 getPrivateCert(string cerFileLoc, string cerFilePwd)
-		{
-			X509Certificate2 x509Certificate2 = null;
+			string base64String;  
 			try
 			{
-				x509Certificate2 = new X509Certificate2(cerFileLoc, cerFilePwd, X509KeyStorageFlags.MachineKeySet
-                    | X509KeyStorageFlags.Exportable);
-			}
-			catch (Exception exception)
+		   var envelopGenerator = new MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedDataGenerator();   
+		   var cert = new MySiGGPaymentSGpay.Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(publicCert.RawData);   
+		   envelopGenerator.AddKeyTransRecipient(cert);  
+		   base64String = envelopGenerator.Generate(new MySiGGPayment.Org.BouncyCastle.Cms.CmsProcessableByteArray(messageEncrypted.GetByteArray()), MySiGGPayment.Org.BouncyCastle.Cms.CmsEnvelopedDataGenerator.DesEde3Cbc)    
+				.GetEncoded().GetBase64String();  
+		} 
+			catch (Exception exception)   
 			{
-			}
-			return x509Certificate2;
+				base64String = exception.ToString();   
+			} 
+			return base64String;   
 		}
 
-        public X509Certificate2 getPrivateCertWithBase64(string base64PrivateKey, string cerFilePwd)
-        {
-            X509Certificate2 x509Certificate2 = null;
-            try
-            {
-                byte[] privateKey = Convert.FromBase64String(base64PrivateKey);
-                x509Certificate2 = new X509Certificate2(privateKey, cerFilePwd, X509KeyStorageFlags.MachineKeySet
-                    | X509KeyStorageFlags.Exportable);
-            }
-            catch (Exception exception)
-            {
-            }
-            return x509Certificate2;
-        }
-
-        public X509Certificate2 getPublicCert(string cerFileLoc)
+		public byte[] ExtractEnvelopedData(byte[] signature)  
 		{
-			X509Certificate2 x509Certificate2 = null;
+			if (signature == null)   
+			{
+				throw new ArgumentNullException("signature");   
+			}  
+			SignedCms signedCm = new SignedCms();  
+			signedCm.Decode(signature);   
+			if (signedCm.Detached)  
+			{
+				throw new InvalidOperationException("Cannot extract enveloped content from a detached signature.");   
+			}  
+
+			return signedCm.ContentInfo.Content;   
+		}	    
+
+		public X509Certificate2 getPrivateCert(string cerFileLoc, string cerFilePwd)   
+		{
+			X509Certificate2 X509Certificate2 = null;  
+			try 
+			{
+				x509Certificate2 = new X509Certificate2(cerFileLoc, cerFilePwd, X509KeyStorageFlags.MachineKeySet  
+			   | X509KeyStorageFlags.Exportable);   
+			}  
+			catch (Exception exception)   
+			{
+			}  
+			return X509Certificate2;  
+		}  
+
+		public X509Certificate2 getPrivateCertWithBase64(string base64PrivateKey, string cerFilePwd)  
+		{
+			X509Certificate2 x509Certificate2 = null;    
+			try 
+			{
+				byte[] privateKey = Convert.FromBase64String(base64PrivateKey);   
+				x509Certificate2 = new X509Certificate2(privateKey, cerFilePwd, X509KeyStorageFlags.MachineKeySet   
+					| X509KeyStorageFlags.Exportable);
+			}  
+			catch (Exception exception)  
+			{
+			}  
+			return x509Certificate2;   
+
+		}
+
+		public X509Certificate2 getPublicCert(string cerFileLoc)  
+		{
+			X509Certificate2 x509Certificate2 = null;  
 			try
 			{
 				x509Certificate2 = new X509Certificate2(cerFileLoc);
-			}
-			catch (Exception exception)
+			}  
+			catch (Exception exception)  
 			{
-			}
-			return x509Certificate2;
-		}
+			}  
+			return x509Certificate2;  
+		}  
 
-		public X509Certificate2 getPublicCertWithBase64(string base64String)
+		public X509Certificate2 getPublicCertWithBase64(string base64String)   
 		{
-			X509Certificate2 x509Certificate2 = null;
+			X509Certificate2 x509Certificate2 = null;  
 			try
 			{
-				x509Certificate2 = new X509Certificate2(base64String.GetByteArray());
+				x509Certificate2 = new X509Certificate2(base64String.GetByteArray());   
 			}
-			catch (Exception exception)
+			catch (Exception exception)   
 			{
 			}
-			return x509Certificate2;
+			return X509Certificate2;  
 		}
 
 		public byte[] signMessage(byte[] data, X509Certificate2 privateCert)
 		{
-			byte[] numArray;
+			byte[] numArray;  
 			try
 			{
-				if (data == null)
+				if (data == null)   
 				{
-					throw new ArgumentNullException("data");
-				}
-				if (privateCert == null)
+					throw new ArgumentNullException("data");   
+				}  
+				if (privateCert == null)   
 				{
-					throw new ArgumentNullException("privateCertificate");
-				}
-				SignedCms signedCm = new SignedCms(new ContentInfo(data));
-				signedCm.ComputeSignature(new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, privateCert));
-				numArray = signedCm.Encode();
+					throw new ArgumentNullException("privateCertificate");    
+				}  
+				SignedCms signedCm = new SignedCms(new ContentInfo(data));   
+				signedCm.ComputeSignature(new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, privateCert));   
+				numArray = signedCm.Encode();   
 			}
-			catch (Exception exception)
+			catch (Exception exception)   
 			{
-				numArray = null;
-			}
-			return numArray;
+				numArray = null;   
+  			}
+			return numArray;  
 		}
 
-		public bool verifyMessage(byte[] signature, X509Certificate2 publicCert, out byte[] decodedMessage)
+		public bool verifyMessage(byte[] signature, X509Certificate2 publicCert, out byte[] decodedMessage)   
 		{
-			bool flag;
-			decodedMessage = null;
-			if (signature == null)
+			bool flag;   
+			decodedMessage = null;   
+			if (signature == null)   
 			{
-				throw new ArgumentNullException("signature");
-			}
-			if (publicCert == null)
+				throw new ArgumentNullException("signature");   
+			}  
+			if (publicCert == null)   
 			{
-				throw new ArgumentNullException("publicCertificate");
-			}
-			SignedCms signedCm = new SignedCms();
+				throw new ArgumentNullException("publicCertificate");    
+			}  
+			SignedCms signedCm = new SignedCms();   
 			try
 			{
-				signedCm.Decode(signature);
-				signedCm.CheckSignature(new X509Certificate2Collection(publicCert), false);
-				decodedMessage = signedCm.ContentInfo.Content;
-				flag = true;
-			}
-			catch (CryptographicException cryptographicException)
+				signedCm.Decode(signature);  
+				signedCm.CheckSignature(new X509Certificate2Collection(publicCert), false);   
+				decodedMessage = signedCm.ContentInfo.Content;    
+				flag = true;   
+			}   
+			catch (CryptographicException cryptographicException)     
 			{
-				flag = false;
-			}
-			return flag;
+				flag = false;    
+			}  
+			return flag;    
 		}
 	}
 }
+
