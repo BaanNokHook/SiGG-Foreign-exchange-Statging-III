@@ -1,0 +1,6 @@
+C:\Users\pnaja\Downloads\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7\bin\Debug\MySiGGPaymentPKCS7.dll
+C:\Users\pnaja\Downloads\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7\bin\Debug\MySiGGPaymentPKCS7.pdb
+C:\Users\pnaja\Downloads\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7\obj\Debug\MySiGGPaymentPKCS7.csproj.AssemblyReference.cache
+C:\Users\pnaja\Downloads\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7\obj\Debug\MySiGGPaymentPKCS7.csproj.CoreCompileInputs.cache
+C:\Users\pnaja\Downloads\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7\obj\Debug\MySiGGPaymentPKCS7.dll
+C:\Users\pnaja\Downloads\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7-master\MySiGGPaymentPKCS7\obj\Debug\MySiGGPaymentPKCS7.pdb
